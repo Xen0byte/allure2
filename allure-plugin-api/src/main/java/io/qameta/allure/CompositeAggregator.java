@@ -1,5 +1,5 @@
 /*
- *  Copyright 2019 Qameta Software OÜ
+ *  Copyright 2016-2023 Qameta Software OÜ
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -26,7 +26,9 @@ import java.util.List;
  * Composite aggregator extension. Can be used to process the list of aggregator.
  *
  * @since 2.0
+ * @deprecated for removal. Use {@link CompositeAggregator2} instead.
  */
+@Deprecated
 public class CompositeAggregator implements Aggregator {
 
     private final List<Aggregator> aggregators;

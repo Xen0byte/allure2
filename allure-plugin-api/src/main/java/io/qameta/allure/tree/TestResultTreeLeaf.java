@@ -1,5 +1,5 @@
 /*
- *  Copyright 2019 Qameta Software OÜ
+ *  Copyright 2016-2023 Qameta Software OÜ
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import io.qameta.allure.entity.TestResult;
 import io.qameta.allure.entity.Time;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * @author charlie (Dmitry Baev).
@@ -27,18 +28,18 @@ import java.util.List;
 public class TestResultTreeLeaf extends DefaultTreeLeaf {
 
     private final String uid;
-
     private final String parentUid;
-
     private final Status status;
-
     private final Time time;
-
     private final boolean flaky;
-
     private final boolean newFailed;
+    private final boolean newPassed;
+    private final boolean newBroken;
+    private final int retriesCount;
+    private final boolean retriesStatusChange;
 
     private final List<String> parameters;
+    private final Set<String> tags;
 
     public TestResultTreeLeaf(final String parentUid, final TestResult testResult) {
         this(
@@ -56,8 +57,12 @@ public class TestResultTreeLeaf extends DefaultTreeLeaf {
         this.time = testResult.getTime();
         this.flaky = testResult.isFlaky();
         this.newFailed = testResult.isNewFailed();
+        this.newPassed = testResult.isNewPassed();
+        this.newBroken = testResult.isNewBroken();
+        this.retriesStatusChange = testResult.isRetriesStatusChange();
+        this.retriesCount = testResult.getRetriesCount();
         this.parameters = testResult.getParameterValues();
-
+        this.tags = testResult.getExtraBlock("tags");
     }
     public String getParentUid() {
         return parentUid;
@@ -83,7 +88,27 @@ public class TestResultTreeLeaf extends DefaultTreeLeaf {
         return newFailed;
     }
 
+    public boolean isNewPassed() {
+        return newPassed;
+    }
+
+    public boolean isNewBroken() {
+        return newBroken;
+    }
+
+    public int getRetriesCount() {
+        return retriesCount;
+    }
+
+    public boolean isRetriesStatusChange() {
+        return retriesStatusChange;
+    }
+
     public List<String> getParameters() {
         return parameters;
+    }
+
+    public Set<String> getTags() {
+        return tags;
     }
 }

@@ -1,10 +1,9 @@
 [license]: http://www.apache.org/licenses/LICENSE-2.0 "Apache License 2.0"
-[site]: https://qameta.io/?source=Report_GitHub
-[blog]: https://qameta.io/blog
-[gitter]: https://gitter.im/allure-framework/allure-core
-[gitter-ru]: https://gitter.im/allure-framework/allure-ru
-[tg-ru]: https://t.me/allure_ru
-[twitter]: https://twitter.com/QametaSoftware "Qameta Software"
+[site]: https://allurereport.org/?source=github_allure2 "Official Website"
+[docs]: https://allurereport.org/docs/?source=github_allure2 "Documentation"
+[qametaio]: https://qameta.io/?source=Report_GitHub "Qameta Software"
+[blog]: https://qameta.io/blog "Qameta Software Blog"
+[Twitter]: https://twitter.com/QametaSoftware "Qameta Software"
 [twitter-team]: https://twitter.com/QametaSoftware/lists/team/members "Team"
 [build]: https://github.com/allure-framework/allure2/actions/workflows/build.yaml
 [build-badge]: https://github.com/allure-framework/allure2/actions/workflows/build.yaml/badge.svg
@@ -14,19 +13,23 @@
 [release-badge]: https://img.shields.io/github/release/allure-framework/allure2.svg?style=flat
 [CONTRIBUTING.md]: .github/CONTRIBUTING.md
 [CODE_OF_CONDUCT.md]: CODE_OF_CONDUCT.md
-[docs]: https://docs.qameta.io/allure/
 
 # Allure Report
 
 [![build-badge][]][build] [![release-badge][]][release] [![maven-badge][]][maven] [![Backers on Open Collective](https://opencollective.com/allure-report/backers/badge.svg)](#backers) [![Sponsors on Open Collective](https://opencollective.com/allure-report/sponsors/badge.svg)](#sponsors)
 
+> Allure Report is a flexible multi-language test report tool to show you a detailed representation of what has been tested and extract maximum from the everyday execution of tests. 
 
-Allure Framework is a flexible lightweight multi-language test report tool that not only
-shows a very concise representation of what have been tested in a neat web report form,
-but allows everyone participating in the development process to extract maximum of useful
-information from everyday execution of tests.
+<img src="https://allurereport.org/public/img/allure-report.svg" height="85px" alt="Allure Report logo" align="right" />
 
-![Allure Report](.github/preview_report.png)
+- Learn more about Allure Report at [https://allurereport.org](https://allurereport.org)
+- 📚 [Documentation](https://allurereport.org/docs/) – discover official documentation for Allure Report
+- ❓ [Questions and Support](https://github.com/orgs/allure-framework/discussions/categories/questions-support) – get help from the team and community
+- 📢 [Official announcements](https://github.com/orgs/allure-framework/discussions/categories/announcements) –  stay updated with our latest news and updates
+- 💬 [General Discussion](https://github.com/orgs/allure-framework/discussions/categories/general-discussion) – engage in casual conversations, share insights and ideas with the community
+- 🖥️ [Live Demo](https://demo.allurereport.org/) — explore a live example of Allure Report in action
+
+---
 
 ## Download
 
@@ -44,35 +47,18 @@ To install Allure, download and install Scoop and then execute in the Powershell
     ```bash
     scoop install allure
     ```
+## How Allure Report works
+    
+Allure Report can build unified reports for dozens of testing tools across eleven programming languages on several CI/CD systems. 
 
-
-## Documentation
-
-All the documentation is available [on our website][docs].
+![How Allure Report works](.github/how_allure_works.jpg)
 
 ## Allure TestOps
 
-Next-gen Software Quality Management Platform brings together automated and manual testing.
-Level up your product quality control and boost your QA and development team productivity by setting your TestOps. Try it on our [website][site].
-
-![Allure TestOps](.github/preview_testops.png)
-
-## Staying in Touch
-
-Follow [@QametaSoftware][twitter] and its [team members][twitter-team] on Twitter. In-depth articles can
-be found at [Qameta Blog][blog]. Also feel free to join our
-[Gitter room][gitter] ([ru][tg-ru]).
-
-## Code of Conduct
-
-Please note that this project is released with a [Contributor Code of Conduct][CODE_OF_CONDUCT.md]. By participating in this project you agree to abide by its terms.
-
+[DevOps-ready Testing Platform built][qametaio] to reduce code time-to-market without quality loss. You can set up your product quality control and boost your QA and development team productivity by setting up your TestOps.
+    
 ## Contributors
 
-This project exists thanks to all the people who contribute. [[Contribute]](.github/CONTRIBUTING.md).
+This project exists thanks to all the people who contributed. [[Contribute]](.github/CONTRIBUTING.md).
 
 <a href="https://github.com/allure-framework/allure2/graphs/contributors"><img src="https://opencollective.com/allure-report/contributors.svg?avatarHeight=24&width=890&showBtn=false" /></a>
-
-## License
-
-The Allure Framework is released under version 2.0 of the [Apache License][license].

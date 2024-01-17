@@ -1,5 +1,5 @@
 /*
- *  Copyright 2019 Qameta Software OÜ
+ *  Copyright 2016-2023 Qameta Software OÜ
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static io.qameta.allure.entity.Status.FAILED;
 import static io.qameta.allure.entity.Status.PASSED;
 import static io.qameta.allure.testdata.TestData.createLaunchResults;
 import static io.qameta.allure.testdata.TestData.randomTestResult;
@@ -46,12 +47,34 @@ class HistoryPluginTest {
         );
 
         extra.put(HISTORY_BLOCK_NAME, historyDataMap);
-        TestResult testResult = createTestResult(Status.FAILED, historyId, 100, 101);
+        TestResult testResult = createTestResult(FAILED, historyId, 100, 101);
         new HistoryPlugin().getData(singletonList(
                 createLaunchResults(extra, testResult)
         ));
         assertThat(testResult.isNewFailed()).isTrue();
         assertThat(testResult.isFlaky()).isFalse();
+        assertThat(testResult.isNewPassed()).isFalse();
+        assertThat(testResult.isNewBroken()).isFalse();
+    }
+
+    @Test
+    void shouldHasNewBrokenMark() {
+        String historyId = UUID.randomUUID().toString();
+        final Map<String, Object> extra = new HashMap<>();
+        final Map<String, HistoryData> historyDataMap = createHistoryDataMap(
+                historyId,
+                createHistoryItem(PASSED, 1, 2)
+        );
+
+        extra.put(HISTORY_BLOCK_NAME, historyDataMap);
+        TestResult testResult = createTestResult(Status.BROKEN, historyId, 100, 101);
+        new HistoryPlugin().getData(singletonList(
+                createLaunchResults(extra, testResult)
+        ));
+        assertThat(testResult.isNewFailed()).isFalse();
+        assertThat(testResult.isFlaky()).isFalse();
+        assertThat(testResult.isNewPassed()).isFalse();
+        assertThat(testResult.isNewBroken()).isTrue();
     }
 
     @Test
@@ -61,16 +84,38 @@ class HistoryPluginTest {
         final Map<String, HistoryData> historyDataMap = createHistoryDataMap(
                 historyId,
                 createHistoryItem(PASSED, 3, 4),
-                createHistoryItem(Status.FAILED, 1, 2)
+                createHistoryItem(FAILED, 1, 2)
         );
 
         extra.put(HISTORY_BLOCK_NAME, historyDataMap);
-        TestResult testResult = createTestResult(Status.FAILED, historyId, 100, 101);
+        TestResult testResult = createTestResult(FAILED, historyId, 100, 101);
         new HistoryPlugin().getData(singletonList(
                 createLaunchResults(extra, testResult)
         ));
         assertThat(testResult.isNewFailed()).isTrue();
         assertThat(testResult.isFlaky()).isTrue();
+        assertThat(testResult.isNewPassed()).isFalse();
+        assertThat(testResult.isNewBroken()).isFalse();
+    }
+
+    @Test
+    void shouldHasNewPassedMark() {
+        String historyId = UUID.randomUUID().toString();
+        final Map<String, Object> extra = new HashMap<>();
+        final Map<String, HistoryData> historyDataMap = createHistoryDataMap(
+            historyId,
+            createHistoryItem(FAILED, 1, 2)
+        );
+
+        extra.put(HISTORY_BLOCK_NAME, historyDataMap);
+        TestResult testResult = createTestResult(Status.PASSED, historyId, 100, 101);
+        new HistoryPlugin().getData(singletonList(
+            createLaunchResults(extra, testResult)
+        ));
+        assertThat(testResult.isNewFailed()).isFalse();
+        assertThat(testResult.isFlaky()).isFalse();
+        assertThat(testResult.isNewPassed()).isTrue();
+        assertThat(testResult.isNewBroken()).isFalse();
     }
 
     @Test

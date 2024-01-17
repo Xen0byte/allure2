@@ -1,7 +1,7 @@
 import com.bmuschko.gradle.docker.tasks.image.Dockerfile
 import java.nio.charset.StandardCharsets.UTF_8
 
-val linkHomepage by extra("https://qameta.io/allure")
+val linkHomepage by extra("https://allurereport.org/")
 val linkCi by extra("https://ci.qameta.io/job/allure2")
 val linkScmUrl by extra("https://github.com/allure-framework/allure2")
 val linkScmConnection by extra("scm:git:git://github.com/allure-framework/allure2.git")
@@ -13,7 +13,7 @@ val qualityConfigsDir by extra("$gradleScriptDir/quality-configs")
 val spotlessDtr by extra("$qualityConfigsDir/spotless")
 
 tasks.wrapper {
-    gradleVersion = "6.8.3"
+    gradleVersion = "8.1.1"
 }
 
 plugins {
@@ -21,17 +21,19 @@ plugins {
     `java-library`
     `maven-publish`
     signing
-    id("com.bmuschko.docker-remote-api") version "6.7.0"
-    id("io.github.gradle-nexus.publish-plugin") version "1.1.0"
-    id("com.diffplug.spotless") version "5.12.5"
-    id("com.gorylenko.gradle-git-properties") version "2.3.1"
-    id("io.spring.dependency-management") version "1.0.11.RELEASE"
-    id("ru.vyarus.quality") version "4.6.0"
+    id("com.bmuschko.docker-remote-api")
+    id("io.github.gradle-nexus.publish-plugin")
+    id("com.diffplug.spotless")
+    id("com.gorylenko.gradle-git-properties")
+    id("io.spring.dependency-management")
+    id("ru.vyarus.quality")
+    id("org.owasp.dependencycheck")
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(17))
+    }
 }
 
 allprojects {
@@ -66,42 +68,51 @@ subprojects {
 
     dependencyManagement {
         imports {
-            mavenBom("com.fasterxml.jackson:jackson-bom:2.12.3")
-            mavenBom("org.junit:junit-bom:5.7.2")
+            mavenBom("com.fasterxml.jackson:jackson-bom:2.16.1")
+            mavenBom("org.junit:junit-bom:5.10.1")
+            mavenBom("io.qameta.allure:allure-bom:2.25.0")
+            mavenBom("com.squareup.okhttp3:okhttp-bom:4.12.0")
         }
         dependencies {
-            dependency("com.beust:jcommander:1.81")
-            dependency("com.github.spotbugs:spotbugs-annotations:4.2.3")
+            dependency("ch.qos.logback:logback-classic:1.3.14")
+            dependency("com.beust:jcommander:1.82")
+            dependency("com.github.spotbugs:spotbugs-annotations:4.8.3")
             dependency("com.opencsv:opencsv:4.6")
-            dependency("com.vladsch.flexmark:flexmark:0.62.2")
-            dependency("commons-io:commons-io:2.8.0")
+            dependency("commons-beanutils:commons-beanutils:1.9.4")
+            dependency("commons-io:commons-io:2.15.1")
             dependency("javax.xml.bind:jaxb-api:2.3.1")
             dependency("org.allurefw:allure1-model:1.0")
-            dependency("org.apache.commons:commons-lang3:3.12.0")
-            dependency("org.apache.httpcomponents:httpclient:4.5.13")
-            dependency("org.apache.tika:tika-core:1.26")
-            dependency("org.assertj:assertj-core:3.19.0")
-            dependency("org.eclipse.jetty:jetty-server:9.4.20.v20190813")
-            dependency("org.freemarker:freemarker:2.3.31")
-            dependency("org.mockito:mockito-core:3.10.0")
-            dependency("org.projectlombok:lombok:1.18.20")
-            dependency("org.zeroturnaround:zt-zip:1.14")
-            dependencySet("org.slf4j:1.7.28") {
+            dependency("org.apache.commons:commons-lang3:3.14.0")
+            dependency("org.apache.httpcomponents:httpclient:4.5.14")
+            dependency("org.apache.tika:tika-core:2.9.1")
+            dependency("org.assertj:assertj-core:3.25.1")
+            dependency("org.eclipse.jetty:jetty-server:9.4.53.v20231009")
+            dependency("org.freemarker:freemarker:2.3.32")
+            dependency("org.junit-pioneer:junit-pioneer:2.2.0")
+            dependency("org.mockito:mockito-core:5.9.0")
+            dependency("org.projectlombok:lombok:1.18.30")
+            dependency("org.zeroturnaround:zt-zip:1.16")
+            dependencySet("org.slf4j:2.0.7") {
                 entry("slf4j-api")
                 entry("slf4j-nop")
                 entry("slf4j-simple")
-                entry("slf4j-log4j12")
             }
-            dependencySet("io.qameta.allure:2.13.0") {
-                entry("allure-java-commons")
-                entry("allure-junit-platform")
-                entry("allure-model")
-                entry("allure-assertj")
-            }
-            dependencySet("com.squareup.retrofit2:2.6.1") {
+            dependencySet("com.squareup.retrofit2:2.9.0") {
                 entry("converter-jackson")
                 entry("retrofit")
             }
+            dependencySet("com.vladsch.flexmark:0.62.2") {
+                entry("flexmark")
+                entry("flexmark-ext-tables")
+            }
+        }
+    }
+
+    tasks.compileJava {
+        if (JavaVersion.current().isJava8) {
+            java.targetCompatibility = JavaVersion.VERSION_1_8
+        } else {
+            options.release.set(8)
         }
     }
 
@@ -157,7 +168,7 @@ subprojects {
             if (spotbugs != null) {
                 dependencies {
                     spotbugs("org.slf4j:slf4j-simple")
-                    spotbugs("com.github.spotbugs:spotbugs:4.2.3")
+                    spotbugs("com.github.spotbugs:spotbugs:4.8.2")
                 }
             }
         }
@@ -204,7 +215,7 @@ subprojects {
     tasks.withType<GenerateModuleMetadata>().configureEach {
         enabled = false
     }
-    
+
     publishing {
         publications {
             create<MavenPublication>("maven") {
@@ -213,7 +224,11 @@ subprojects {
                 pom {
                     name.set(project.name)
                     description.set("Module ${project.name} of Allure Framework.")
-                    url.set("https://github.com/allure-framework/allure2")
+                    url.set("https://allurereport.org/")
+                    organization {
+                        name.set("Qameta Software")
+                        url.set("https://qameta.io/")
+                    }
                     licenses {
                         license {
                             name.set("The Apache License, Version 2.0")
@@ -225,11 +240,13 @@ subprojects {
                             id.set("baev")
                             name.set("Dmitry Baev")
                             email.set("dmitry.baev@qameta.io")
+                            url.set("https://github.com/baev")
                         }
                         developer {
                             id.set("eroshenkoam")
                             name.set("Artem Eroshenko")
                             email.set("artem.eroshenko@qameta.io")
+                            url.set("https://github.com/eroshenkoam")
                         }
                     }
                     scm {
@@ -240,6 +257,10 @@ subprojects {
                     issueManagement {
                         system.set("GitHub Issues")
                         url.set("https://github.com/allure-framework/allure2/issues")
+                    }
+                    ciManagement {
+                        system.set("Github Actions")
+                        url.set("https://github.com/allure-framework/allure-java/actions")
                     }
                     versionMapping {
                         usage("java-api") {

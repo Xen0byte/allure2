@@ -1,5 +1,5 @@
 /*
- *  Copyright 2019 Qameta Software OÜ
+ *  Copyright 2016-2023 Qameta Software OÜ
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -24,7 +24,10 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.type.CollectionType;
 
 /**
+ * This module adds custom list deserializer that allows to deserialize empty lists in xml.
+ *
  * @author charlie (Dmitry Baev).
+ * @see ListDeserializer
  */
 public class XmlParserModule extends SimpleModule {
 

@@ -1,5 +1,5 @@
 /*
- *  Copyright 2019 Qameta Software OÜ
+ *  Copyright 2016-2023 Qameta Software OÜ
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -31,11 +31,11 @@ public class PluginConfiguration implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    protected String id;
-    protected String name;
-    protected String description;
-    protected List<String> extensions = new ArrayList<>();
-    protected List<String> jsFiles = new ArrayList<>();
-    protected List<String> cssFiles = new ArrayList<>();
+    private String id;
+    private String name;
+    private String description;
+    private List<String> extensions = new ArrayList<>();
+    private List<String> jsFiles = new ArrayList<>();
+    private List<String> cssFiles = new ArrayList<>();
 
 }

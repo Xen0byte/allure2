@@ -4,7 +4,7 @@ import org.gradle.kotlin.dsl.support.unzipTo
 
 plugins {
     application
-    id("nebula.ospackage") version "8.5.6"
+    id("com.netflix.nebula.ospackage")
 }
 
 description = "Allure Commandline"
@@ -42,7 +42,7 @@ val main = sourceSets.getByName("main")
 
 val startScripts by tasks.existing(CreateStartScripts::class) {
     applicationName = "allure"
-    classpath = classpath?.plus(files("src/lib/config"))
+    classpath = files("src/lib/*", "src/lib/config")
     doLast {
         unixScript.writeText(unixScript.readText()
                 .replace(Regex("(?m)^APP_HOME="), "export APP_HOME=")
@@ -74,14 +74,12 @@ ospackage {
     os = org.redline_rpm.header.Os.LINUX
     release = "1"
 
-    requires("java8-runtime | java8-runtime-headless | " +
-            "openjdk8-jre-headless | openjdk-8-jre | openjdk-8-jdk | " +
-            "oracle-java8-installer | oracle-java8-installer")
+    requires("default-jre-headless")
 
     // Remove closureOf when https://github.com/nebula-plugins/gradle-ospackage-plugin/issues/399 is fixed
     from("${pack}/bin", closureOf<CopySpec> {
         into("${dest}/bin")
-        fileMode = 0x168
+        fileMode = 0x1ED
     })
     from("${pack}/config", closureOf<CopySpec> {
         into("${dest}/config")
@@ -128,12 +126,12 @@ dependencies {
     allurePlugin(project(path = ":xunit-xml-plugin", configuration = "allurePlugin"))
     annotationProcessor("org.projectlombok:lombok")
     compileOnly("org.projectlombok:lombok")
+    implementation("ch.qos.logback:logback-classic")
     implementation("com.beust:jcommander")
     implementation("com.fasterxml.jackson.core:jackson-databind")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml")
     implementation("commons-io:commons-io")
     implementation("org.eclipse.jetty:jetty-server")
-    implementation("org.slf4j:slf4j-log4j12")
     implementation(project(":allure-generator"))
     testImplementation("io.qameta.allure:allure-junit-platform")
     testImplementation("org.apache.commons:commons-lang3")

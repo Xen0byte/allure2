@@ -1,5 +1,5 @@
 /*
- *  Copyright 2019 Qameta Software OÜ
+ *  Copyright 2016-2023 Qameta Software OÜ
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -15,12 +15,12 @@
  */
 package io.qameta.allure.tags;
 
-import io.qameta.allure.Aggregator;
+import io.qameta.allure.Aggregator2;
+import io.qameta.allure.ReportStorage;
 import io.qameta.allure.core.Configuration;
 import io.qameta.allure.core.LaunchResults;
 import io.qameta.allure.entity.LabelName;
 
-import java.nio.file.Path;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -29,14 +29,14 @@ import java.util.Set;
 /**
  * @author charlie (Dmitry Baev).
  */
-public class TagsPlugin implements Aggregator {
+public class TagsPlugin implements Aggregator2 {
 
     public static final String TAGS_BLOCK_NAME = "tags";
 
     @Override
     public void aggregate(final Configuration configuration,
                           final List<LaunchResults> launchesResults,
-                          final Path outputDirectory) {
+                          final ReportStorage reportStorage) {
         launchesResults.stream()
                 .map(LaunchResults::getAllResults)
                 .flatMap(Collection::stream)

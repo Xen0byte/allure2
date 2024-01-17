@@ -1,5 +1,5 @@
 /*
- *  Copyright 2019 Qameta Software OÜ
+ *  Copyright 2016-2023 Qameta Software OÜ
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -46,7 +46,7 @@ public class OpenCommand {
     private HostPortOptions hostPortOptions = new HostPortOptions();
 
     public List<Path> getReportDirectories() {
-        return reportDirectories;
+        return Collections.unmodifiableList(reportDirectories);
     }
 
     public HostPortOptions getHostPortOptions() {

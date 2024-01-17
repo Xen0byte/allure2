@@ -1,4 +1,5 @@
 import i18next from "i18next";
+import gtag from "./gtag";
 import settings from "./settings";
 
 export const LANGUAGES = [
@@ -14,6 +15,7 @@ export const LANGUAGES = [
   { id: "es", title: "Español" },
   { id: "kr", title: "한국어" },
   { id: "fr", title: "Français" },
+  { id: "az", title: "Azərbaycanca" },
 ];
 
 LANGUAGES.map((lang) => lang.id).forEach((lang) =>
@@ -22,9 +24,10 @@ LANGUAGES.map((lang) => lang.id).forEach((lang) =>
 
 export function initTranslations() {
   return new Promise((resolve, reject) => {
+    const language = settings.get("language");
     i18next.init(
       {
-        lng: settings.get("language"),
+        lng: language,
         interpolation: {
           escapeValue: false,
         },
@@ -32,6 +35,7 @@ export function initTranslations() {
       },
       (err) => (err ? reject(err) : resolve()),
     );
+    gtag("init_language", { language: language || "en" });
   });
 }
 

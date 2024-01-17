@@ -1,5 +1,5 @@
 /*
- *  Copyright 2019 Qameta Software OÜ
+ *  Copyright 2016-2023 Qameta Software OÜ
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import io.qameta.allure.Issue;
 import io.qameta.allure.context.RandomUidContext;
 import io.qameta.allure.core.Configuration;
 import io.qameta.allure.core.ResultsVisitor;
+import io.qameta.allure.entity.Label;
 import io.qameta.allure.entity.LabelName;
 import io.qameta.allure.entity.Status;
 import io.qameta.allure.entity.TestResult;
@@ -31,11 +32,17 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
+import static io.qameta.allure.entity.LabelName.PACKAGE;
+import static io.qameta.allure.entity.LabelName.RESULT_FORMAT;
+import static io.qameta.allure.entity.LabelName.SUITE;
+import static io.qameta.allure.entity.LabelName.TEST_CLASS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.Mockito.mock;
@@ -77,7 +84,8 @@ class TrxPluginTest {
                         tuple("AddingSeveralNumbers_40", Status.PASSED, "Adding several numbers"),
                         tuple("AddingSeveralNumbers_60", Status.PASSED, "Adding several numbers"),
                         tuple("AddTwoNumbers", Status.PASSED, "Add two numbers"),
-                        tuple("FailToAddTwoNumbers", Status.FAILED, "Fail to add two numbers")
+                        tuple("FailToAddTwoNumbers", Status.FAILED, "Fail to add two numbers"),
+                        tuple("SkippedTest", Status.SKIPPED, "Should Skip this test")
                 );
 
         assertThat(captor.getAllValues())
@@ -136,6 +144,44 @@ class TrxPluginTest {
                 .filteredOn(result -> result.getTestStage().getSteps().get(1).getName().contains("Given I have entered 50 into the calculator"))
                 .filteredOn(result -> result.getTestStage().getSteps().get(3).getName().contains("And I have entered -1 into the calculator"))
                 .hasSize(1);
+    }
+
+    @Test
+    void shouldParseTestResultChildren() throws Exception {
+        process(
+                "trxdata/testresultsWithChildren.trx",
+                "sample.trx"
+        );
+
+        final ArgumentCaptor<TestResult> captor = ArgumentCaptor.forClass(TestResult.class);
+        verify(visitor, times(7)).visitTestResult(captor.capture());
+
+        assertThat(captor.getAllValues())
+                .hasSize(7)
+                .extracting(TestResult::getName, TestResult::getStatus)
+                .containsExactlyInAnyOrder(
+                        tuple("UnitTest_One", Status.PASSED),
+                        tuple("UnitTest_Two", Status.PASSED),
+                        tuple("UnitTest_Three", Status.FAILED),
+                        tuple("UnitTest_Three (Child One)", Status.FAILED),
+                        tuple("UnitTest_Three (Child Two)", Status.FAILED),
+                        tuple("UnitTest_Three (Child Two) (GrandChild One)", Status.PASSED),
+                        tuple("UnitTest_Three (Child Two) (GrandChild Two)", Status.FAILED)
+                );
+
+        List<Label> labels = new ArrayList<>();
+        labels.add(new Label().setName(SUITE.value()).setValue("Test"));
+        labels.add(new Label().setName(TEST_CLASS.value()).setValue("Test"));
+        labels.add(new Label().setName(PACKAGE.value()).setValue("Test"));
+        labels.add(new Label().setName(RESULT_FORMAT.value()).setValue("trx"));
+
+        assertThat(captor.getAllValues())
+                .filteredOn(result -> result.getName().contains("UnitTest_Three"))
+                .extracting(TestResult::getLabels)
+                .containsOnly(
+                        labels
+                );
+
     }
 
     private void process(String... strings) throws IOException {

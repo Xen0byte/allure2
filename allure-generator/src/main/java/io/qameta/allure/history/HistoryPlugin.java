@@ -1,5 +1,5 @@
 /*
- *  Copyright 2019 Qameta Software OÜ
+ *  Copyright 2016-2023 Qameta Software OÜ
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 package io.qameta.allure.history;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import io.qameta.allure.Aggregator;
+import io.qameta.allure.CommonJsonAggregator2;
 import io.qameta.allure.Reader;
 import io.qameta.allure.context.JacksonContext;
 import io.qameta.allure.core.Configuration;
@@ -30,29 +30,33 @@ import io.qameta.allure.executor.ExecutorPlugin;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import static io.qameta.allure.history.HistoryItem.comparingByTime;
 
 /**
  * Plugin that adds history to the report.
  *
  * @since 2.0
  */
-public class HistoryPlugin implements Reader, Aggregator {
+public class HistoryPlugin extends CommonJsonAggregator2 implements Reader {
+
+    private static final Set<Status> MARK_STATUSES = new HashSet<>(Arrays.asList(
+            Status.FAILED, Status.BROKEN, Status.PASSED
+    ));
 
     private static final String HISTORY_BLOCK_NAME = "history";
-
     private static final String HISTORY_FILE_NAME = "history.json";
 
     //@formatter:off
@@ -60,6 +64,11 @@ public class HistoryPlugin implements Reader, Aggregator {
             new TypeReference<Map<String, HistoryData>>() {
             };
     //@formatter:on
+
+
+    public HistoryPlugin() {
+        super(HISTORY_BLOCK_NAME, HISTORY_FILE_NAME);
+    }
 
     @Override
     public void readResults(final Configuration configuration,
@@ -77,41 +86,52 @@ public class HistoryPlugin implements Reader, Aggregator {
         }
     }
 
-    @Override
-    public void aggregate(final Configuration configuration,
-                          final List<LaunchResults> launchesResults,
-                          final Path outputDirectory) throws IOException {
-        final JacksonContext context = configuration.requireContext(JacksonContext.class);
-        final Path historyFolder = Files.createDirectories(outputDirectory.resolve(HISTORY_BLOCK_NAME));
-        final Path historyFile = historyFolder.resolve(HISTORY_FILE_NAME);
-        try (OutputStream os = Files.newOutputStream(historyFile)) {
-            context.getValue().writeValue(os, getData(launchesResults));
-        }
+    private boolean isNewFailed(final HistoryItem current,
+                                final List<HistoryItem> prev) {
+        return statusChangeTo(Status.FAILED, current, prev);
     }
 
-    private boolean isNewFailed(final List<HistoryItem> histories) {
-        final List<Status> statuses = histories.stream()
-                .sorted(comparingByTime())
+    private boolean isNewBroken(final HistoryItem current,
+                                final List<HistoryItem> prev) {
+        return statusChangeTo(Status.BROKEN, current, prev);
+    }
+
+    private boolean isNewPassed(final HistoryItem current,
+                                final List<HistoryItem> prev) {
+        return statusChangeTo(Status.PASSED, current, prev);
+    }
+
+    private boolean statusChangeTo(final Status target,
+                                   final HistoryItem current,
+                                   final List<HistoryItem> prev) {
+        final Optional<HistoryItem> prevItem = prev.stream()
+                .filter(hi -> MARK_STATUSES.contains(hi.getStatus()))
+                .findFirst();
+
+        return prevItem.isPresent()
+               && target.equals(current.getStatus())
+               && !target.equals(prevItem.get().getStatus());
+    }
+
+    private boolean isFlaky(final HistoryItem current,
+                            final List<HistoryItem> prev) {
+        if (prev.isEmpty()) {
+            return false;
+        }
+        if (current.getStatus() != Status.FAILED && current.getStatus() != Status.BROKEN) {
+            return false;
+        }
+        final List<Status> statuses = prev
+                .stream()
                 .map(HistoryItem::getStatus)
+                .limit(5)
                 .collect(Collectors.toList());
-        return statuses.size() > 1
-                && statuses.get(0) == Status.FAILED
-                && statuses.get(1) == Status.PASSED;
+
+        return statuses.contains(Status.PASSED)
+               && statuses.indexOf(Status.PASSED) < statuses.lastIndexOf(Status.FAILED);
     }
 
-    private boolean isFlaky(final List<HistoryItem> histories) {
-        if (histories.size() > 1 && histories.get(0).status == Status.FAILED) {
-            final List<Status> statuses = histories.subList(1, histories.size())
-                    .stream()
-                    .sorted(comparingByTime())
-                    .map(HistoryItem::getStatus)
-                    .collect(Collectors.toList());
-            return statuses.indexOf(Status.PASSED) < statuses.lastIndexOf(Status.FAILED)
-                    && statuses.indexOf(Status.PASSED) != -1;
-        }
-        return false;
-    }
-
+    @Override
     protected Map<String, HistoryData> getData(final List<LaunchResults> launches) {
         final Map<String, HistoryData> history = launches.stream()
                 .map(launch -> launch.getExtra(HISTORY_BLOCK_NAME, (Supplier<Map<String, HistoryData>>) HashMap::new))
@@ -145,21 +165,25 @@ public class HistoryPlugin implements Reader, Aggregator {
         if (!data.getItems().isEmpty()) {
             result.addExtraBlock(HISTORY_BLOCK_NAME, copy(data));
         }
-        final HistoryItem newItem = new HistoryItem()
+        final HistoryItem current = new HistoryItem()
                 .setUid(result.getUid())
                 .setStatus(result.getStatus())
                 .setStatusDetails(result.getStatusMessage())
                 .setTime(result.getTime());
 
         if (Objects.nonNull(info.getReportUrl())) {
-            newItem.setReportUrl(createReportUrl(info.getReportUrl(), result.getUid()));
+            current.setReportUrl(createReportUrl(info.getReportUrl(), result.getUid()));
         }
 
-        final List<HistoryItem> newItems = Stream.concat(Stream.of(newItem), data.getItems().stream())
+        final List<HistoryItem> prevItems = data.getItems();
+        result.setFlaky(result.isFlaky() || isFlaky(current, prevItems));
+        result.setNewFailed(isNewFailed(current, prevItems));
+        result.setNewBroken(isNewBroken(current, prevItems));
+        result.setNewPassed(isNewPassed(current, prevItems));
+
+        final List<HistoryItem> newItems = Stream.concat(Stream.of(current), prevItems.stream())
                 .limit(20)
                 .collect(Collectors.toList());
-        result.setNewFailed(isNewFailed(newItems));
-        result.setFlaky(isFlaky(newItems));
         data.setItems(newItems);
     }
 

@@ -1,5 +1,5 @@
 /*
- *  Copyright 2019 Qameta Software OÜ
+ *  Copyright 2016-2023 Qameta Software OÜ
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -47,7 +47,7 @@ public interface JiraService {
     List<JiraTestResult> getTestResults(@Query("issueKey") String issueKey);
 
     @GET("raven/1.0/api/testexec/{issueKey}/test")
-    List<XrayTestRun> getTestRunsForTestExecution(@Path("issueKey") String issueKey);
+    List<XrayTestRun> getTestRunsForTestExecution(@Path("issueKey") String issueKey, @Query("page") int page);
 
     @PUT("raven/1.0/api/testrun/{externalId}/status")
     Response<ResponseBody> updateTestRunStatus(@Path("externalId") Integer externalId, @Query("status") String status);

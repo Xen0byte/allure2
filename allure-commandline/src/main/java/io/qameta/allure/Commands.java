@@ -1,5 +1,5 @@
 /*
- *  Copyright 2019 Qameta Software OÜ
+ *  Copyright 2016-2023 Qameta Software OÜ
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -19,16 +19,16 @@ import io.qameta.allure.config.ConfigLoader;
 import io.qameta.allure.core.Configuration;
 import io.qameta.allure.core.Plugin;
 import io.qameta.allure.option.ConfigOptions;
+import io.qameta.allure.option.ReportNameOptions;
 import io.qameta.allure.plugin.DefaultPluginLoader;
 import org.apache.commons.io.FileUtils;
-import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.handler.DefaultHandler;
-import org.eclipse.jetty.server.handler.HandlerList;
 import org.eclipse.jetty.server.handler.ResourceHandler;
+import org.eclipse.jetty.util.resource.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.awt.AWTError;
 import java.awt.Desktop;
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -52,7 +52,7 @@ public class Commands {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Commands.class);
     private static final String DIRECTORY_EXISTS_MESSAGE = "Allure: Target directory {} for the report is already"
-            + " in use, add a '--clean' option to overwrite";
+                                                           + " in use, add a '--clean' option to overwrite";
 
     private final Path allureHome;
 
@@ -91,7 +91,17 @@ public class Commands {
     public ExitCode generate(final Path reportDirectory,
                              final List<Path> resultsDirectories,
                              final boolean clean,
-                             final ConfigOptions profile) {
+                             final ConfigOptions profile,
+                             final ReportNameOptions reportNameOptions) {
+        return generate(reportDirectory, resultsDirectories, clean, false, profile, reportNameOptions);
+    }
+
+    public ExitCode generate(final Path reportDirectory,
+                             final List<Path> resultsDirectories,
+                             final boolean clean,
+                             final boolean singleFileMode,
+                             final ConfigOptions profile,
+                             final ReportNameOptions reportNameOptions) {
         final boolean directoryExists = Files.exists(reportDirectory);
         if (clean && directoryExists) {
             FileUtils.deleteQuietly(reportDirectory.toFile());
@@ -99,12 +109,11 @@ public class Commands {
             LOGGER.error(DIRECTORY_EXISTS_MESSAGE, reportDirectory.toAbsolutePath());
             return ExitCode.GENERIC_ERROR;
         }
-        try {
-            final ReportGenerator generator = new ReportGenerator(createReportConfiguration(profile));
+        final ReportGenerator generator = new ReportGenerator(createReportConfiguration(profile, reportNameOptions));
+        if (singleFileMode) {
+            generator.generateSingleFile(reportDirectory, resultsDirectories);
+        } else {
             generator.generate(reportDirectory, resultsDirectories);
-        } catch (IOException e) {
-            LOGGER.error("Could not generate report", e);
-            return ExitCode.GENERIC_ERROR;
         }
         LOGGER.info("Report successfully generated to {}", reportDirectory);
         return ExitCode.NO_ERROR;
@@ -113,7 +122,8 @@ public class Commands {
     public ExitCode serve(final List<Path> resultsDirectories,
                           final String host,
                           final int port,
-                          final ConfigOptions configOptions) {
+                          final ConfigOptions configOptions,
+                          final ReportNameOptions reportNameOptions) {
         LOGGER.info("Generating report to temp directory...");
 
         final Path reportDirectory;
@@ -130,7 +140,8 @@ public class Commands {
                 reportDirectory,
                 resultsDirectories,
                 false,
-                configOptions
+                configOptions,
+                reportNameOptions
         );
         if (exitCode.isSuccess()) {
             return open(reportDirectory, host, port);
@@ -140,8 +151,9 @@ public class Commands {
 
     public ExitCode open(final Path reportDirectory, final String host, final int port) {
         LOGGER.info("Starting web server...");
-        final Server server = setUpServer(host, port, reportDirectory);
+        final Server server;
         try {
+            server = setUpServer(host, port, reportDirectory);
             server.start();
         } catch (Exception e) {
             LOGGER.error("Could not serve the report", e);
@@ -150,9 +162,9 @@ public class Commands {
 
         try {
             openBrowser(server.getURI());
-        } catch (IOException e) {
+        } catch (IOException | AWTError e) {
             LOGGER.error(
-                    "Could not open the report in browser, try to open it manually {}: {}",
+                    "Could not open the report in browser, try to open it manually {}",
                     server.getURI(),
                     e
             );
@@ -169,7 +181,7 @@ public class Commands {
 
     public ExitCode listPlugins(final ConfigOptions configOptions) {
         final CommandlineConfig config = getConfig(configOptions);
-        config.getPlugins().forEach(LOGGER::info);
+        config.getPlugins().forEach(System.out::println);
         return ExitCode.NO_ERROR;
     }
 
@@ -179,7 +191,8 @@ public class Commands {
      * @param profile selected profile.
      * @return created report configuration.
      */
-    protected Configuration createReportConfiguration(final ConfigOptions profile) {
+    protected Configuration createReportConfiguration(final ConfigOptions profile,
+                                                      final ReportNameOptions reportNameOptions) {
         final DefaultPluginLoader loader = new DefaultPluginLoader();
         final CommandlineConfig commandlineConfig = getConfig(profile);
         final ClassLoader classLoader = getClass().getClassLoader();
@@ -192,24 +205,24 @@ public class Commands {
         return new ConfigurationBuilder()
                 .useDefault()
                 .fromPlugins(plugins)
+                .withReportName(reportNameOptions.getReportName())
                 .build();
     }
 
     /**
      * Set up Jetty server to serve Allure Report.
      */
-    protected Server setUpServer(final String host, final int port, final Path reportDirectory) {
+    protected Server setUpServer(final String host, final int port, final Path reportDirectory) throws IOException {
         final Server server = Objects.isNull(host)
                 ? new Server(port)
                 : new Server(new InetSocketAddress(host, port));
         final ResourceHandler handler = new ResourceHandler();
         handler.setRedirectWelcome(true);
         handler.setDirectoriesListed(true);
-        handler.setResourceBase(reportDirectory.toAbsolutePath().toString());
-        final HandlerList handlers = new HandlerList();
-        handlers.setHandlers(new Handler[]{handler, new DefaultHandler()});
+        handler.setPathInfoOnly(true);
+        handler.setBaseResource(Resource.newResource(reportDirectory.toRealPath()));
         server.setStopAtShutdown(true);
-        server.setHandler(handlers);
+        server.setHandler(handler);
         return server;
     }
 
@@ -222,11 +235,11 @@ public class Commands {
                 Desktop.getDesktop().browse(url);
             } catch (UnsupportedOperationException e) {
                 LOGGER.error("Browse operation is not supported on your platform."
-                    + "You can use the link below to open the report manually.", e);
+                             + "You can use the link below to open the report manually.", e);
             }
         } else {
             LOGGER.error("Can not open browser because this capability is not supported on "
-                + "your platform. You can use the link below to open the report manually."); 
+                         + "your platform. You can use the link below to open the report manually.");
         }
     }
 

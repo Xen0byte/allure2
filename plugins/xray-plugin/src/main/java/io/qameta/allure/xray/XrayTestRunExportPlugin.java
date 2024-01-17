@@ -1,5 +1,5 @@
 /*
- *  Copyright 2019 Qameta Software OÜ
+ *  Copyright 2016-2023 Qameta Software OÜ
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -15,13 +15,13 @@
  */
 package io.qameta.allure.xray;
 
-import io.qameta.allure.Aggregator;
+import io.qameta.allure.Aggregator2;
+import io.qameta.allure.ReportStorage;
 import io.qameta.allure.core.Configuration;
 import io.qameta.allure.core.LaunchResults;
 import io.qameta.allure.entity.ExecutorInfo;
 import io.qameta.allure.entity.Link;
 import io.qameta.allure.entity.Status;
-import io.qameta.allure.entity.TestResult;
 import io.qameta.allure.jira.JiraIssueComment;
 import io.qameta.allure.jira.JiraService;
 import io.qameta.allure.jira.JiraServiceBuilder;
@@ -29,13 +29,12 @@ import io.qameta.allure.jira.XrayTestRun;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -45,7 +44,7 @@ import static io.qameta.allure.util.PropertyUtils.getProperty;
 /**
  * Plugin update Xray test run status from test result.
  */
-public class XrayTestRunExportPlugin implements Aggregator {
+public class XrayTestRunExportPlugin implements Aggregator2 {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(XrayTestRunExportPlugin.class);
 
@@ -63,6 +62,8 @@ public class XrayTestRunExportPlugin implements Aggregator {
     private static final String XRAY_STATUS_PASS = "PASS";
     private static final String XRAY_STATUS_FAIL = "FAIL";
     private static final String XRAY_STATUS_TODO = "TODO";
+
+    private static final int JIRA_MAX_RESULTS = 1000;
 
     private final boolean enabled;
     private final String issues;
@@ -91,7 +92,7 @@ public class XrayTestRunExportPlugin implements Aggregator {
     @Override
     public void aggregate(final Configuration configuration,
                           final List<LaunchResults> launchesResults,
-                          final Path outputDirectory) {
+                          final ReportStorage storage) {
         if (enabled) {
             updateTestRunStatuses(launchesResults);
         }
@@ -101,15 +102,54 @@ public class XrayTestRunExportPlugin implements Aggregator {
         final List<String> executionIssues = splitByComma(issues);
         final JiraService jiraService = jiraServiceSupplier.get();
 
-        final Map<String, XrayTestRun> testRunsMap = executionIssues.stream()
-                .map(jiraService::getTestRunsForTestExecution)
+        final Map<String, List<XrayTestRun>> testRunsMap = executionIssues.stream()
+                .map(issue -> getTestRunsInTestExecution(jiraService, issue))
                 .flatMap(Collection::stream)
-                .collect(Collectors.toMap(XrayTestRun::getKey, r -> r));
+                .collect(Collectors.groupingBy(
+                        XrayTestRun::getKey,
+                        HashMap::new,
+                        Collectors.toCollection(ArrayList::new)
+                ));
 
+        final Map<String, String> linkNamePerStatus = new HashMap<>();
         launchesResults.stream()
                 .map(LaunchResults::getAllResults)
                 .flatMap(Collection::stream)
-                .forEach(testResult -> updateTestRunStatuses(jiraService, testResult, statusesMap, testRunsMap));
+                .forEach(testResult -> {
+                    for (Link link : testResult.getLinks()) {
+                        if (this.isTmsLink(link)) {
+                            final String status = statusesMap.get(testResult.getStatus());
+                            LOGGER.debug(link.getName() + " with status " + status);
+                            switch (status) {
+                                case XRAY_STATUS_FAIL:
+                                    linkNamePerStatus.put(link.getName(), status);
+                                    break;
+                                case XRAY_STATUS_TODO:
+                                    if (!linkNamePerStatus.containsKey(link.getName())) {
+                                        linkNamePerStatus.put(link.getName(), status);
+                                    }
+                                    break;
+
+                                case XRAY_STATUS_PASS:
+                                    if (!linkNamePerStatus.containsKey(link.getName())
+                                        || linkNamePerStatus.get(link.getName()).equals(XRAY_STATUS_TODO)) {
+                                        linkNamePerStatus.put(link.getName(), status);
+                                    }
+                                    break;
+
+                                default:
+                                    break;
+                            }
+                        }
+                    }
+                });
+
+        linkNamePerStatus.forEach((linkName, status) -> {
+            final List<XrayTestRun> xrayTestRuns = testRunsMap.get(linkName);
+            if (xrayTestRuns != null) {
+                xrayTestRuns.forEach(testRun -> updateTestRunStatus(jiraService, testRun, status));
+            }
+        });
 
         final Optional<ExecutorInfo> executorInfo = launchesResults.stream()
                 .map(launchResults -> launchResults.getExtra(EXECUTORS_BLOCK_NAME))
@@ -119,20 +159,6 @@ public class XrayTestRunExportPlugin implements Aggregator {
                 .map(ExecutorInfo.class::cast)
                 .findFirst();
         executorInfo.ifPresent(info -> executionIssues.forEach(issue -> addExecutionComment(jiraService, issue, info)));
-    }
-
-    private void updateTestRunStatuses(final JiraService jiraService,
-                                       final TestResult testResult,
-                                       final Map<Status, String> statusesMap,
-                                       final Map<String, XrayTestRun> testRunsMap) {
-        final String status = statusesMap.get(testResult.getStatus());
-        final List<XrayTestRun> testRunIssueKeys = testResult.getLinks().stream()
-                .filter(this::isTmsLink)
-                .map(Link::getName)
-                .map(testRunsMap::get)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
-        testRunIssueKeys.forEach(testRun -> updateTestRunStatus(jiraService, testRun, status));
     }
 
     private void addExecutionComment(final JiraService jiraService,
@@ -154,11 +180,11 @@ public class XrayTestRunExportPlugin implements Aggregator {
         if (!status.equals(testRun.getStatus())) {
             try {
                 jiraService.updateTestRunStatus(testRun.getId(), status);
-                LOGGER.debug(String.format("Xray testrun '%s' status updated to '%s' successfully",
-                        testRun.getKey(), status));
+                LOGGER.debug(String.format("Xray testrun '%s' (id: '%s') status updated to '%s' successfully",
+                        testRun.getKey(), testRun.getId(), status));
             } catch (Exception e) {
-                LOGGER.error(String.format("Xray testrun '%s' status update failed",
-                        testRun.getKey()));
+                LOGGER.error(String.format("Xray testrun '%s' (id: '%s') status update failed",
+                        testRun.getKey(), testRun.getId()));
             }
         }
     }
@@ -188,6 +214,17 @@ public class XrayTestRunExportPlugin implements Aggregator {
     }
 
     private static List<String> splitByComma(final String value) {
-        return Arrays.asList(value.split(","));
+        return Arrays.stream(value.split(",")).map(String::trim).collect(Collectors.toList());
+    }
+
+    private List<XrayTestRun> getTestRunsInTestExecution(final JiraService jiraService, final String executionKey) {
+        final List<XrayTestRun> results = new ArrayList<>();
+        List<XrayTestRun> pageTestRuns;
+        int page = 1;
+        do {
+            pageTestRuns = jiraService.getTestRunsForTestExecution(executionKey, page++);
+            results.addAll(pageTestRuns);
+        } while (pageTestRuns.size() == JIRA_MAX_RESULTS);
+        return results;
     }
 }

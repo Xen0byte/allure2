@@ -1,5 +1,5 @@
 /*
- *  Copyright 2019 Qameta Software OÜ
+ *  Copyright 2016-2023 Qameta Software OÜ
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -28,6 +28,8 @@ import static java.util.Objects.isNull;
  * @author charlie (Dmitry Baev).
  */
 public interface Summarizable {
+
+    String getName();
 
     String getStatusMessage();
 
@@ -76,5 +78,12 @@ public interface Summarizable {
         final List<Step> steps = isNull(getSteps()) ? emptyList() : getSteps();
         final List<Parameter> parameters = isNull(getParameters()) ? emptyList() : getParameters();
         return steps.size() + attachments.size() + parameters.size() > 0 || shouldDisplayMessage();
+    }
+
+    @JsonProperty
+    default boolean isAttachmentStep() {
+        return getStepsCount() == 0
+               && getAttachmentsCount() == 1
+               && Objects.equals(getName(), getAttachments().get(0).getName());
     }
 }

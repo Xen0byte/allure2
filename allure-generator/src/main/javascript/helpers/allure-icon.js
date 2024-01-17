@@ -4,11 +4,23 @@ import translate from "./t";
 const icons = {
   flaky: {
     className: "fa fa-bomb",
-    tooltip: "status.flaky",
+    tooltip: "marks.flaky",
   },
   newFailed: {
-    className: "fa fa-warning",
-    tooltip: "status.newFailed",
+    className: "fa fa-times-circle",
+    tooltip: "marks.newFailed",
+  },
+  newBroken: {
+    className: "fa fa-exclamation-circle",
+    tooltip: "marks.newBroken",
+  },
+  newPassed: {
+    className: "fa fa-check-circle",
+    tooltip: "marks.newPassed",
+  },
+  retriesStatusChange: {
+    className: "fa fa-refresh",
+    tooltip: "marks.retriesStatusChange",
   },
   failed: {
     className: "fa fa-times-circle fa-fw text_status_failed",
@@ -32,13 +44,16 @@ const icons = {
   },
 };
 
-export default function(value, extraClasses = "") {
+export default function(value, opts) {
+  const {
+    hash: { extraClasses = "", noTooltip = false },
+  } = opts;
   const icon = icons[value];
   return icon
     ? new SafeString(
-        `<span class="${icon.className} ${extraClasses}" data-tooltip="${translate(
-          icon.tooltip,
-        )}"></span>`,
+        `<span class="${icon.className} ${extraClasses}" ${
+          noTooltip ? "" : `data-tooltip="${translate(icon.tooltip)}"`
+        }></span>`,
       )
     : "";
 }

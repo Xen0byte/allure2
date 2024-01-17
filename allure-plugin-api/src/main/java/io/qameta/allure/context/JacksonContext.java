@@ -1,5 +1,5 @@
 /*
- *  Copyright 2019 Qameta Software OÜ
+ *  Copyright 2016-2023 Qameta Software OÜ
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ package io.qameta.allure.context;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import io.qameta.allure.Context;
 
 /**
@@ -32,7 +31,6 @@ public class JacksonContext implements Context<ObjectMapper> {
 
     public JacksonContext() {
         this.mapper = new ObjectMapper()
-                .enable(SerializationFeature.INDENT_OUTPUT)
                 .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
                 .setSerializationInclusion(JsonInclude.Include.NON_NULL);
     }

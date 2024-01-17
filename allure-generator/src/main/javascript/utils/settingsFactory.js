@@ -17,6 +17,9 @@ const treePluginDefaults = {
   visibleMarks: {
     flaky: false,
     newFailed: false,
+    newPassed: false,
+    newBroken: false,
+    retriesStatusChange: false,
   },
   showGroupInfo: false,
   treeSorting: {
@@ -148,5 +151,5 @@ export {
   getGlobalSettings,
   getSettingsForPlugin,
   getSettingsForTreePlugin,
-  getSettingsForWidgetGridPlugin
+  getSettingsForWidgetGridPlugin,
 };

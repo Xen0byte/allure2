@@ -1,5 +1,5 @@
 /*
- *  Copyright 2019 Qameta Software OÜ
+ *  Copyright 2016-2023 Qameta Software OÜ
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -37,7 +37,9 @@ import java.util.List;
  *
  * @param <T> type of result bean.
  * @since 2.0
+ * @deprecated for removal. Use {@link CommonCsvExportAggregator2} instead.
  */
+@Deprecated
 public abstract class CommonCsvExportAggregator<T> implements Aggregator {
 
     private final String fileName;
@@ -96,7 +98,7 @@ public abstract class CommonCsvExportAggregator<T> implements Aggregator {
 
         private String extractHeaderName(final BeanField<T> beanField) {
             if (beanField == null || beanField.getField() == null
-                    || beanField.getField().getDeclaredAnnotationsByType(CsvBindByName.class).length == 0) {
+                || beanField.getField().getDeclaredAnnotationsByType(CsvBindByName.class).length == 0) {
                 return StringUtils.EMPTY;
             }
 

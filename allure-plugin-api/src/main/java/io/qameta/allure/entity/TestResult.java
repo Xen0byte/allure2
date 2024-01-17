@@ -1,5 +1,5 @@
 /*
- *  Copyright 2019 Qameta Software OÜ
+ *  Copyright 2016-2023 Qameta Software OÜ
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -57,6 +57,10 @@ public class TestResult implements Serializable, Nameable, Parameterizable, Stat
 
     protected boolean flaky;
     protected boolean newFailed;
+    protected boolean newBroken;
+    protected boolean newPassed;
+    protected int retriesCount;
+    protected boolean retriesStatusChange;
 
     //    Execution
     protected List<StageResult> beforeStages = new ArrayList<>();
